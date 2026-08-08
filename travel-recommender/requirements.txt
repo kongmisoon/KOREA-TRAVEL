@@ -1,0 +1,4 @@
+# 국내 여행 추천 CLI 실행에 필요한 최소 의존성
+# (FastAPI/Flask 같은 웹 프레임워크는 사용하지 않는다 - 터미널 전용 프로그램)
+requests>=2.31.0
+python-dotenv>=1.0.0

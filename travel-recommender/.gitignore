@@ -1,0 +1,23 @@
+# ---- 보안: API 키가 들어있는 파일은 절대 커밋하지 않는다 ----
+.env
+.env.*
+!.env.example
+
+# ---- 실행 결과물 (재생성 가능하므로 버전 관리 대상이 아니다) ----
+results/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# ---- OS / 에디터 ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
