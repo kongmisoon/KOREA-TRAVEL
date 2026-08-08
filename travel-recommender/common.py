@@ -41,15 +41,19 @@ MIN_EVENT_COUNT: int = 1
 MAX_EVENT_COUNT: int = 3
 
 # --- 환경변수 이름 (키 "값"이 아니라 "이름"만 코드에 적는다) ---
-ENV_OPENAI_API_KEY: str = "OPENAI_API_KEY"
+ENV_GEMINI_API_KEY: str = "GEMINI_API_KEY"
 ENV_KAKAO_REST_API_KEY: str = "KAKAO_REST_API_KEY"
-ENV_OPENAI_MODEL: str = "OPENAI_MODEL"
+ENV_GEMINI_MODEL: str = "GEMINI_MODEL"
 
-#: OPENAI_MODEL 환경변수가 없을 때 사용할 기본 모델.
-DEFAULT_OPENAI_MODEL: str = "gpt-4o-mini"
+#: GEMINI_MODEL 환경변수가 없을 때 사용할 기본 모델.
+#: gemini-2.0-flash 는 무료 티어에서 쓸 수 있고 응답이 빠르며,
+#: "생각(thinking) 토큰"을 쓰지 않아 짧은 응답이 잘려 나갈 위험이 적다.
+DEFAULT_GEMINI_MODEL: str = "gemini-2.0-flash"
 
 # --- 외부 API 엔드포인트 ---
-OPENAI_CHAT_COMPLETIONS_URL: str = "https://api.openai.com/v1/chat/completions"
+#: Gemini 는 모델 이름이 URL 경로에 들어간다.
+#: 최종 형태: {BASE}/{model}:generateContent
+GEMINI_API_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/models"
 KAKAO_KEYWORD_SEARCH_URL: str = "https://dapi.kakao.com/v2/local/search/keyword.json"
 
 # --- 파이프라인 단계 이름 (errors 기록 시 "step" 값으로 사용) ---

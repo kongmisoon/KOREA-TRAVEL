@@ -20,7 +20,7 @@ Python 백엔드 학습용 프로젝트로, 다음을 실습하는 것이 목표
         │
         ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ [1/3] LLM (OpenAI Chat Completions)                          │
+│ [1/3] LLM (Google Gemini generateContent)                     │
 │   입력: 날짜                                                  │
 │   출력: {recommended_city, weather, events[], reason} JSON    │
 │   실패 시: 강한 제약 프롬프트로 1회만 재시도 → 그래도 실패하면 기본값 │
@@ -61,7 +61,7 @@ Python 백엔드 학습용 프로젝트로, 다음을 실습하는 것이 목표
 ```
 travel-recommender/
 ├── travel_planner.py   # 실행 진입점: CLI 파싱, 키 검사, 파이프라인 실행, 결과 저장
-├── llm_client.py       # OpenAI REST 호출, 추천 JSON 파싱/검증/재시도
+├── llm_client.py       # Gemini REST 호출, 추천 JSON 파싱/검증/재시도
 ├── place_client.py     # Kakao Local 검색, 응답 정규화, 오류 분류
 ├── report.py           # 리포트 프롬프트 조립, 섹션 보정, fallback 리포트
 ├── common.py           # 공통 상수, add_error(), 키 마스킹
@@ -98,12 +98,13 @@ FastAPI·Flask 같은 웹 프레임워크는 사용하지 않습니다(터미널
 
 ## 3. API 키 발급 및 `.env` 설정
 
-### 3-1. OpenAI API 키
+### 3-1. Google Gemini API 키 (무료)
 
-1. <https://platform.openai.com/api-keys> 접속 후 로그인
-2. **Create new secret key** 클릭
-3. 생성된 `sk-...` 키를 복사 (⚠️ 이 화면을 벗어나면 다시 볼 수 없습니다)
-4. 결제 수단 등록이 되어 있어야 호출이 가능합니다 (무료 크레딧 소진 시 429 발생)
+1. <https://aistudio.google.com/apikey> 접속 후 Google 계정으로 로그인
+2. **API 키 만들기 (Create API key)** 클릭
+3. 생성된 `AIza...` 키를 복사
+4. **카드 등록 없이 무료 티어로 사용할 수 있습니다.** 대신 분당/일일 호출 횟수 제한이
+   있어, 짧은 시간에 여러 번 실행하면 `429`(QUOTA_ERROR)가 날 수 있습니다.
 
 ### 3-2. Kakao Local REST API 키
 
@@ -122,9 +123,9 @@ cp .env.example .env
 `.env` 파일을 열어 값을 채웁니다. **형식은 반드시 `KEY_NAME=your_api_key_here` 한 줄씩**입니다.
 
 ```dotenv
-OPENAI_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_api_key_here
 KAKAO_REST_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-4o-mini
+GEMINI_MODEL=gemini-2.0-flash
 ```
 
 > `.env` 는 `.gitignore` 에 등록되어 있어 커밋되지 않습니다.
@@ -134,13 +135,13 @@ OPENAI_MODEL=gpt-4o-mini
 
 ```bash
 # macOS / Linux
-export OPENAI_API_KEY="YOUR_KEY"
+export GEMINI_API_KEY="YOUR_KEY"
 export KAKAO_REST_API_KEY="YOUR_KEY"
 ```
 
 ```powershell
 # Windows PowerShell
-$env:OPENAI_API_KEY="YOUR_KEY"
+$env:GEMINI_API_KEY="YOUR_KEY"
 $env:KAKAO_REST_API_KEY="YOUR_KEY"
 ```
 
@@ -168,10 +169,10 @@ python travel_planner.py --date "2026-03-15"
 ============================================================
 
 [준비] API 키 확인 중...
-  - OPENAI_API_KEY: sk-p******************** (확인됨)
+  - GEMINI_API_KEY: AIza******************** (확인됨)
   - KAKAO_REST_API_KEY: 1a2b****************** (확인됨)
 
-[1/3] LLM 으로 2026-03-15 여행지를 추천받는 중... (모델: gpt-4o-mini)
+[1/3] LLM 으로 2026-03-15 여행지를 추천받는 중... (모델: gemini-2.0-flash)
   - 추천 지역: 제주
   - 날씨: 3월 중순 평균 15도 내외, 바람이 있으나 온화함
   - 행사: 유채꽃 축제, 봄 시즌 지역 행사
@@ -290,12 +291,15 @@ VS Code 에서 `Ctrl+Shift+V`(macOS `Cmd+Shift+V`)로 미리보기하면 보기 
 
 | 증상 | `errors` 의 type | 원인 | 대처 |
 | --- | --- | --- | --- |
-| `필수 API 키가 설정되지 않았습니다` | (즉시 종료) | `.env` 없음 / 변수명 오타 | `cp .env.example .env` 후 값 입력. 변수명은 `OPENAI_API_KEY`, `KAKAO_REST_API_KEY` |
+| `필수 API 키가 설정되지 않았습니다` | (즉시 종료) | `.env` 없음 / 변수명 오타 | `cp .env.example .env` 후 값 입력. 변수명은 `GEMINI_API_KEY`, `KAKAO_REST_API_KEY` |
+| `HTTP 400: ... API_KEY_INVALID` | `AUTH_ERROR` | **Gemini 는 키가 틀려도 401 이 아니라 400 을 보냅니다** | 키 재확인. 이 프로그램은 본문의 `API_KEY_INVALID` 문구를 보고 인증 오류로 분류합니다 |
 | `HTTP 401` / `HTTP 403` | `AUTH_ERROR` | 키가 틀렸거나 만료, Kakao 는 JavaScript 키를 쓴 경우 | 키 재확인. Kakao 는 **REST API 키**여야 함. 헤더 형식 `KakaoAK {키}` |
-| `HTTP 429` | `QUOTA_ERROR` | 호출 한도 초과 / 크레딧 소진 | 잠시 후 재시도. OpenAI 는 결제 수단·사용량 한도 확인 |
+| `HTTP 404: models/... not found` | `API_ERROR` | 모델 이름이 잘못됨 | `.env` 의 `GEMINI_MODEL` 값 확인. 아래 "사용 가능한 모델 확인" 참고 |
+| `HTTP 429` | `QUOTA_ERROR` | 호출 한도 초과 | 잠시 후 재시도. Gemini 무료 티어는 **분당/일일 호출 제한**이 있습니다 |
 | `HTTP 500` / `503` | `API_ERROR` | 제공자 서버 장애 | 잠시 후 재시도. 상태 페이지 확인 |
 | `타임아웃` / `네트워크 오류` | `NETWORK_ERROR` | 인터넷 끊김, 사내 프록시/방화벽 | 네트워크 확인. 프록시 환경이면 `HTTPS_PROXY` 설정 확인 |
-| `JSON 파싱 실패` | `PARSE_ERROR` | LLM 이 설명 문장·코드블록을 덧붙임 | 프로그램이 코드블록 제거 후 **1회만** 재시도하고, 실패 시 기본값으로 진행합니다. 반복되면 `OPENAI_MODEL` 을 더 성능 좋은 모델로 바꿔 보세요 |
+| `응답 본문이 비어 있습니다` | `API_ERROR` | 안전 필터 차단(SAFETY) 또는 길이 초과(MAX_TOKENS) | 200 OK 인데도 본문이 빌 수 있는 것이 Gemini 의 특징입니다. `MAX_TOKENS` 면 `llm_client.py` 의 `REPORT_MAX_TOKENS` 를 늘리세요 |
+| `JSON 파싱 실패` | `PARSE_ERROR` | LLM 이 설명 문장·코드블록을 덧붙임 | 프로그램이 코드블록 제거 후 **1회만** 재시도하고, 실패 시 기본값으로 진행합니다. 반복되면 `GEMINI_MODEL` 을 더 성능 좋은 모델로 바꿔 보세요 |
 | `검색 결과가 0건입니다` | `EMPTY_RESULT` | 추천 도시명이 지나치게 넓거나 특이함 | 오류가 아닙니다. 리포트에는 "데이터 없음"으로 표기되고 나머지는 정상 생성됩니다 |
 | `ModuleNotFoundError: requests` | - | 의존성 미설치 / 가상환경 미활성화 | `pip install -r requirements.txt` |
 
@@ -304,10 +308,25 @@ VS Code 에서 `Ctrl+Shift+V`(macOS `Cmd+Shift+V`)로 미리보기하면 보기 
 
 ---
 
+### 사용 가능한 모델 확인 (404 가 날 때)
+
+계정에서 쓸 수 있는 모델 목록은 아래 명령으로 확인할 수 있습니다.
+
+```bash
+# macOS / Linux
+curl -s -H "x-goog-api-key: $GEMINI_API_KEY" \
+  https://generativelanguage.googleapis.com/v1beta/models | grep '"name"'
+```
+
+여기서 나온 이름(`models/` 접두사는 빼고)을 `.env` 의 `GEMINI_MODEL` 에 넣으면 됩니다.
+
+---
+
 ## 8. 다른 API 제공자로 바꾸고 싶다면
 
-- **LLM 을 Google Gemini 로**: `llm_client.call_chat_completion()` 의 URL·헤더·요청 본문·응답 파싱만 수정하면 됩니다.
+- **LLM 을 OpenAI 로**: `llm_client.call_generate_content()` 의 URL·헤더·요청 본문·응답 파싱만 수정하면 됩니다.
   나머지 코드는 "문자열을 돌려주는 함수"로만 이 모듈을 사용하므로 영향받지 않습니다.
+  (실제로 이 프로젝트는 OpenAI 로 먼저 만든 뒤 이 파일 하나만 바꿔 Gemini 로 옮겼습니다.)
 - **장소 검색을 Naver Local 로**: `place_client.normalize_kakao_document()` 대신
   `normalize_naver_item()` 을 만들어 **같은 공통 스키마**를 반환하게 하면 됩니다.
   `report.py` 와 `travel_planner.py` 는 한 줄도 고칠 필요가 없습니다.

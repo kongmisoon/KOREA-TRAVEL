@@ -1,12 +1,22 @@
-"""LLM(OpenAI Chat Completions) 호출 담당 모듈.
+"""LLM(Google Gemini - generateContent) 호출 담당 모듈.
 
 이 모듈이 책임지는 것
-    * OpenAI REST API 에 POST 요청을 보내고 응답 텍스트를 꺼내오는 일
+    * Gemini REST API 에 POST 요청을 보내고 응답 텍스트를 꺼내오는 일
     * 1단계: 여행지 추천을 **JSON 스키마에 맞춰** 받아오는 일 (파싱 실패 시 1회 재시도)
     * 3단계: 최종 리포트(Markdown) 텍스트를 받아오는 일
 
-공식 SDK(openai 패키지) 대신 ``requests`` 로 직접 호출하는 이유는,
+공식 SDK(google-genai 패키지) 대신 ``requests`` 로 직접 호출하는 이유는,
 "REST API 요청/응답이 실제로 어떻게 생겼는지"를 눈으로 보기 위해서다(학습용).
+
+Gemini API 의 특징 (OpenAI 계열과 다른 점 - 학습 포인트)
+    1. 모델 이름이 **URL 경로**에 들어간다: ``/v1beta/models/{model}:generateContent``
+    2. 인증은 ``x-goog-api-key`` **헤더**로 한다.
+       (``?key=...`` 처럼 URL 에 붙이는 방법도 있지만, URL 은 서버 접근 로그·프록시
+        기록에 그대로 남기 때문에 키를 URL 에 넣지 않는 헤더 방식이 훨씬 안전하다.)
+    3. 요청 본문은 ``contents`` / ``systemInstruction`` / ``generationConfig`` 구조다.
+    4. 응답은 ``candidates[0].content.parts[*].text`` 에 들어 있다.
+    5. **키가 틀리면 401 이 아니라 400(API_KEY_INVALID)** 이 온다. 그래서 상태 코드만
+       보지 않고 본문의 오류 코드까지 확인해야 인증 오류를 제대로 분류할 수 있다.
 """
 
 from __future__ import annotations
@@ -18,17 +28,17 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from common import (
-    DEFAULT_OPENAI_MODEL,
-    ENV_OPENAI_API_KEY,
-    ENV_OPENAI_MODEL,
+    DEFAULT_GEMINI_MODEL,
+    ENV_GEMINI_API_KEY,
+    ENV_GEMINI_MODEL,
     ERROR_API,
     ERROR_AUTH,
     ERROR_NETWORK,
     ERROR_PARSE,
+    GEMINI_API_BASE_URL,
     MAX_EVENT_COUNT,
     MAX_JSON_RETRY,
     MIN_EVENT_COUNT,
-    OPENAI_CHAT_COMPLETIONS_URL,
     REQUEST_TIMEOUT_SECONDS,
     STEP_RECOMMEND,
     add_error,
@@ -51,9 +61,10 @@ RECOMMENDATION_TEMPERATURE: float = 0.4
 #: 리포트 단계 온도. 문장을 쓰는 단계라 조금 더 높게 준다.
 REPORT_TEMPERATURE: float = 0.6
 
-#: 응답 최대 토큰 수(리포트는 길어질 수 있으므로 넉넉히).
-RECOMMENDATION_MAX_TOKENS: int = 800
-REPORT_MAX_TOKENS: int = 2000
+#: 응답 최대 토큰 수. 넉넉히 잡는다 - 부족하면 응답이 중간에 잘려(MAX_TOKENS)
+#: JSON 파싱이 실패하거나 리포트 섹션이 통째로 사라진다.
+RECOMMENDATION_MAX_TOKENS: int = 1200
+REPORT_MAX_TOKENS: int = 3000
 
 #: 파싱 실패 시 사용할 기본값(fallback). 프로그램이 멈추지 않게 하는 안전망.
 FALLBACK_RECOMMENDATION: Dict[str, Any] = {
@@ -66,14 +77,59 @@ FALLBACK_RECOMMENDATION: Dict[str, Any] = {
     ),
 }
 
+#: 응답이 비어 있을 때 원인을 사람 말로 설명하기 위한 표.
+#: (Gemini 는 안전 필터·길이 제한에 걸리면 200 OK 를 주면서 본문만 비워 보낸다)
+FINISH_REASON_MESSAGES: Dict[str, str] = {
+    "SAFETY": "안전 필터에 의해 응답이 차단되었습니다.",
+    "RECITATION": "저작권 보호 정책에 의해 응답이 차단되었습니다.",
+    "MAX_TOKENS": "응답이 최대 길이에 걸려 잘렸습니다. maxOutputTokens 를 늘려 보세요.",
+    "OTHER": "알 수 없는 이유로 응답이 중단되었습니다.",
+}
+
 
 def get_model_name() -> str:
     """사용할 LLM 모델 이름을 환경변수에서 읽어온다.
 
     Returns:
-        ``OPENAI_MODEL`` 환경변수 값. 없으면 기본 모델 이름.
+        ``GEMINI_MODEL`` 환경변수 값. 없으면 기본 모델 이름.
     """
-    return os.getenv(ENV_OPENAI_MODEL) or DEFAULT_OPENAI_MODEL
+    return os.getenv(ENV_GEMINI_MODEL) or DEFAULT_GEMINI_MODEL
+
+
+def build_endpoint(model: str) -> str:
+    """모델 이름으로 generateContent 엔드포인트 URL 을 만든다.
+
+    Gemini 는 OpenAI 와 달리 모델 이름을 요청 본문이 아니라 **URL 경로**에 넣는다.
+
+    Args:
+        model: 모델 이름 (예: ``"gemini-2.0-flash"``).
+
+    Returns:
+        완성된 엔드포인트 URL.
+    """
+    return f"{GEMINI_API_BASE_URL}/{model}:generateContent"
+
+
+def classify_llm_http_status(status_code: int, body: str) -> str:
+    """Gemini 의 HTTP 오류를 프로젝트 공통 오류 타입으로 분류한다.
+
+    Gemini 는 **API 키가 잘못되어도 400** 을 돌려주기 때문에, 상태 코드만으로는
+    "요청을 잘못 만든 것"과 "키가 틀린 것"을 구분할 수 없다. 그래서 본문에
+    ``API_KEY_INVALID`` 같은 표식이 있는지까지 확인한다.
+
+    Args:
+        status_code: HTTP 상태 코드.
+        body: 응답 본문 문자열.
+
+    Returns:
+        ``AUTH_ERROR`` / ``QUOTA_ERROR`` / ``API_ERROR`` 중 하나.
+    """
+    upper_body = body.upper()
+    auth_markers = ("API_KEY_INVALID", "API KEY NOT VALID", "PERMISSION_DENIED", "UNAUTHENTICATED")
+    if status_code == 400 and any(marker in upper_body for marker in auth_markers):
+        return ERROR_AUTH
+    # 나머지(401/403 → 인증, 429 → 쿼터)는 공통 규칙을 그대로 쓴다.
+    return classify_http_status(status_code)
 
 
 # ---------------------------------------------------------------------------
@@ -81,52 +137,101 @@ def get_model_name() -> str:
 # ---------------------------------------------------------------------------
 
 
-def call_chat_completion(
+def extract_text_from_response(data: Dict[str, Any]) -> str:
+    """Gemini 응답 JSON 에서 생성된 텍스트를 꺼낸다.
+
+    Gemini 는 200 OK 를 주면서도 본문이 비어 있을 수 있다(안전 필터, 길이 초과 등).
+    그래서 ``data["candidates"][0]...`` 를 한 번에 인덱싱하지 않고 단계별로 확인한다.
+
+    Args:
+        data: ``response.json()`` 결과.
+
+    Returns:
+        생성된 텍스트.
+
+    Raises:
+        ValueError: 텍스트를 꺼낼 수 없는 경우(차단·길이 초과·구조 불일치).
+    """
+    # 1) 프롬프트 자체가 차단된 경우 candidates 가 아예 없다.
+    block_reason = (data.get("promptFeedback") or {}).get("blockReason")
+    if block_reason:
+        raise ValueError(f"프롬프트가 차단되었습니다(blockReason={block_reason}).")
+
+    candidates = data.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        raise ValueError("응답에 candidates 가 없습니다.")
+
+    candidate = candidates[0]
+    parts = ((candidate.get("content") or {}).get("parts")) or []
+    # parts 는 여러 조각으로 나뉘어 올 수 있으므로 모두 이어 붙인다.
+    texts = [part.get("text", "") for part in parts if isinstance(part, dict)]
+    text = "".join(texts).strip()
+
+    if not text:
+        finish_reason = candidate.get("finishReason", "OTHER")
+        detail = FINISH_REASON_MESSAGES.get(finish_reason, f"finishReason={finish_reason}")
+        raise ValueError(f"응답 본문이 비어 있습니다. {detail}")
+
+    return text
+
+
+def call_generate_content(
     system_prompt: str,
     user_prompt: str,
     temperature: float,
     max_tokens: int,
     step: str,
     errors: List[Dict[str, str]],
+    force_json: bool = False,
 ) -> Optional[str]:
-    """OpenAI Chat Completions API 에 POST 요청을 보내고 답변 텍스트를 돌려준다.
+    """Gemini generateContent API 에 POST 요청을 보내고 답변 텍스트를 돌려준다.
 
     POST 를 쓰는 이유: 프롬프트처럼 길고 구조화된 데이터를 "요청 본문(body)"에
     담아 보내야 하기 때문이다. GET 은 URL 쿼리스트링만 쓰므로 적합하지 않다.
 
     Args:
-        system_prompt: 모델의 역할/규칙을 정의하는 system 메시지.
-        user_prompt: 실제 요청 내용을 담은 user 메시지.
+        system_prompt: 모델의 역할/규칙을 정의하는 시스템 지시문.
+        user_prompt: 실제 요청 내용.
         temperature: 창의성 정도(0에 가까울수록 일관적).
         max_tokens: 응답 최대 길이.
         step: 오류 기록용 단계 이름.
         errors: 오류를 누적할 리스트.
+        force_json: True 면 모델에게 JSON 형식으로만 답하도록 강제한다(1단계 전용).
 
     Returns:
         모델이 생성한 문자열. 실패하면 ``None`` (오류는 errors 에 기록된다).
     """
-    api_key = os.getenv(ENV_OPENAI_API_KEY, "")
+    api_key = os.getenv(ENV_GEMINI_API_KEY, "")
     # 키를 읽는 지점에서 곧바로 마스킹 대상으로 등록한다(로그 유출 방지 이중 안전장치).
     register_secret(api_key)
+
     headers = {
-        # Bearer 토큰 방식 인증. 키는 절대 URL 이나 로그에 넣지 않고 헤더로만 보낸다.
-        "Authorization": f"Bearer {api_key}",
+        # 키를 URL 이 아닌 헤더에 담는다. URL 은 각종 로그에 그대로 남기 때문이다.
+        "x-goog-api-key": api_key,
         "Content-Type": "application/json",
     }
-    payload: Dict[str, Any] = {
-        "model": get_model_name(),
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
+
+    generation_config: Dict[str, Any] = {
         "temperature": temperature,
-        "max_tokens": max_tokens,
+        "maxOutputTokens": max_tokens,
+    }
+    if force_json:
+        # Gemini 가 제공하는 구조화 출력 기능. "코드블록/설명 없이 JSON만" 이라는
+        # 프롬프트 지시를 API 차원에서 한 번 더 보강해 준다.
+        # 다만 이걸 켰다고 검증을 생략하면 안 된다 - 키 이름이나 타입은 여전히 틀릴 수 있다.
+        generation_config["responseMimeType"] = "application/json"
+
+    payload: Dict[str, Any] = {
+        # systemInstruction: 대화 내용과 분리해서 "역할·규칙"만 담는 자리.
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+        "generationConfig": generation_config,
     }
 
     try:
         # timeout 을 반드시 지정한다. 없으면 서버가 응답하지 않을 때 영원히 멈춘다.
         response = requests.post(
-            OPENAI_CHAT_COMPLETIONS_URL,
+            build_endpoint(get_model_name()),
             headers=headers,
             json=payload,
             timeout=REQUEST_TIMEOUT_SECONDS,
@@ -140,30 +245,27 @@ def call_chat_completion(
         return None
 
     if response.status_code != 200:
-        error_type = classify_http_status(response.status_code)
+        error_type = classify_llm_http_status(response.status_code, response.text)
         add_error(errors, step, error_type, describe_http_error(response.status_code, response.text))
+        # 사용자가 바로 조치할 수 있도록 타입별 안내를 콘솔에 덧붙인다.
         if error_type == ERROR_AUTH:
-            print("  [!] 인증 실패. OPENAI_API_KEY 설정을 확인하세요.")
+            print("  [!] 인증 실패. GEMINI_API_KEY 설정을 확인하세요.")
+        elif response.status_code == 404:
+            print(f"  [!] 모델 '{get_model_name()}' 을 찾을 수 없습니다. GEMINI_MODEL 값을 확인하세요.")
         return None
 
-    # 여기서부터는 200 OK. 그래도 응답 구조가 예상과 다를 수 있으므로 방어적으로 접근한다.
+    # 여기서부터는 200 OK. 그래도 응답이 비어 있을 수 있으므로 방어적으로 접근한다.
     try:
         data = response.json()
-        content = data["choices"][0]["message"]["content"]
-    except (ValueError, KeyError, IndexError, TypeError) as exc:
-        add_error(
-            errors,
-            step,
-            ERROR_API,
-            f"LLM 응답 구조가 예상과 다릅니다: {truncate_for_log(exc)}",
-        )
+    except ValueError as exc:
+        add_error(errors, step, ERROR_API, f"LLM 응답이 JSON 이 아닙니다: {truncate_for_log(exc)}")
         return None
 
-    if not isinstance(content, str) or not content.strip():
-        add_error(errors, step, ERROR_API, "LLM 이 빈 응답을 반환했습니다.")
+    try:
+        return extract_text_from_response(data)
+    except ValueError as exc:
+        add_error(errors, step, ERROR_API, f"LLM 응답에서 텍스트를 꺼내지 못했습니다: {truncate_for_log(exc)}")
         return None
-
-    return content
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +287,7 @@ def build_recommendation_prompt(date: str, strict: bool = False) -> str:
         strict: 재시도 여부. True 면 "설명 없이 순수 JSON만" 이라는 더 강한 제약을 붙인다.
 
     Returns:
-        LLM 에 보낼 user 프롬프트 문자열.
+        LLM 에 보낼 프롬프트 문자열.
     """
     base_prompt = f"""여행 날짜: {date}
 
@@ -339,13 +441,14 @@ def get_recommendation(date: str, errors: List[Dict[str, str]]) -> Dict[str, Any
         if is_retry:
             print("  - JSON 파싱에 실패해 더 강한 제약 프롬프트로 1회 재시도합니다.")
 
-        content = call_chat_completion(
+        content = call_generate_content(
             system_prompt=RECOMMENDATION_SYSTEM_PROMPT,
             user_prompt=build_recommendation_prompt(date, strict=is_retry),
             temperature=RECOMMENDATION_TEMPERATURE,
             max_tokens=RECOMMENDATION_MAX_TOKENS,
             step=STEP_RECOMMEND,
             errors=errors,
+            force_json=True,  # 1단계는 JSON 만 필요하므로 API 차원에서도 강제한다.
         )
         if content is None:
             # 호출 자체가 실패한 경우(네트워크/인증 등). 오류는 이미 기록되었다.
@@ -388,7 +491,7 @@ def generate_report_markdown(
     (이 함수는 "호출"만 책임진다 - 역할 분리)
 
     Args:
-        system_prompt: system 메시지.
+        system_prompt: 시스템 지시문.
         user_prompt: 리포트 생성 요청 프롬프트.
         errors: 오류를 누적할 리스트.
         step: 오류 기록용 단계 이름.
@@ -396,11 +499,12 @@ def generate_report_markdown(
     Returns:
         Markdown 문자열. 실패하면 ``None``.
     """
-    return call_chat_completion(
+    return call_generate_content(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         temperature=REPORT_TEMPERATURE,
         max_tokens=REPORT_MAX_TOKENS,
         step=step,
         errors=errors,
+        force_json=False,  # 리포트는 Markdown 이므로 JSON 강제를 걸면 안 된다.
     )

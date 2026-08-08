@@ -32,8 +32,8 @@ import place_client
 import report
 from common import (
     DATE_FORMAT,
+    ENV_GEMINI_API_KEY,
     ENV_KAKAO_REST_API_KEY,
-    ENV_OPENAI_API_KEY,
     ERROR_FALLBACK,
     ERROR_IO,
     RESTAURANT_COUNT,
@@ -52,7 +52,7 @@ from common import (
 
 #: 이 프로그램이 반드시 필요로 하는 환경변수 목록 (이름, 발급 안내).
 REQUIRED_ENV_VARS: Tuple[Tuple[str, str], ...] = (
-    (ENV_OPENAI_API_KEY, "https://platform.openai.com/api-keys 에서 발급"),
+    (ENV_GEMINI_API_KEY, "https://aistudio.google.com/apikey 에서 무료 발급"),
     (ENV_KAKAO_REST_API_KEY, "https://developers.kakao.com 내 애플리케이션 > 앱 키 > REST API 키"),
 )
 
@@ -169,8 +169,8 @@ def check_api_keys() -> Dict[str, str]:
             "       cp .env.example .env\n"
             "       # .env 를 열어 각 키 값을 채운다. .env 는 .gitignore 로 보호된다.\n"
             "  2) 셸 환경변수로 직접 지정\n"
-            "       macOS/Linux    : export OPENAI_API_KEY=\"YOUR_KEY\"\n"
-            "       Windows PowerShell: $env:OPENAI_API_KEY=\"YOUR_KEY\"\n",
+            "       macOS/Linux    : export GEMINI_API_KEY=\"YOUR_KEY\"\n"
+            "       Windows PowerShell: $env:GEMINI_API_KEY=\"YOUR_KEY\"\n",
             file=sys.stderr,
         )
         raise SystemExit(EXIT_USAGE_ERROR)
