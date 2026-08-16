@@ -51,6 +51,7 @@ Python 백엔드 학습용 프로젝트로, 다음을 실습하는 것이 목표
 | 원칙 | 구현 |
 | --- | --- |
 | 외부 API 는 언제든 실패한다 | 모든 호출을 `try-except` + `timeout=20초` 로 감싼다 |
+| 재시도는 "고쳐질 오류"에만 | 5xx(서버 일시 장애)만 2초→4초로 최대 2회. 429·4xx 는 재시도하지 않는다 |
 | 실패해도 멈추지 않는다 | 오류는 `errors` 리스트에 기록하고 다음 단계로 진행 |
 | 조용한 실패 금지 | `add_error()` 가 리스트에 남기고 **콘솔에도 즉시 출력** |
 | LLM 출력은 못 믿는다 | JSON 스키마 검증 + 리포트 필수 섹션 누락 시 코드가 보정 |
@@ -126,7 +127,7 @@ cp .env.example .env
 ```dotenv
 GEMINI_API_KEY=your_api_key_here
 KAKAO_REST_API_KEY=your_api_key_here
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-flash-latest
 ```
 
 > `.env` 는 `.gitignore` 에 등록되어 있어 커밋되지 않습니다.
@@ -195,13 +196,13 @@ python travel_planner.py --date "2026-03-15" --demo
 ============================================================
 
 [준비] API 키 확인 중...
-  - GEMINI_API_KEY: AIza******************** (확인됨)
+  - GEMINI_API_KEY: AQ.A******************** (확인됨)
   - KAKAO_REST_API_KEY: 1a2b****************** (확인됨)
 
-[1/3] LLM 으로 2026-03-15 여행지를 추천받는 중... (모델: gemini-2.0-flash)
-  - 추천 지역: 제주
-  - 날씨: 3월 중순 평균 15도 내외, 바람이 있으나 온화함
-  - 행사: 유채꽃 축제, 봄 시즌 지역 행사
+[1/3] LLM 으로 2026-03-15 여행지를 추천받는 중... (모델: gemini-flash-latest)
+  - 추천 지역: 광양
+  - 날씨: 3월 중순 평균 기온은 10도에서 14도 내외로 포근하여 야외 활동을 즐기기에 좋습니다.
+  - 행사: 광양매화축제, 섬진강 꽃길 트레킹
 
 [2/3] Kakao Local 로 '제주 맛집' 검색 중... (최대 5곳)
   - 5곳 확보: 흑돼지거리 본점, 제주 해장국, 성산 물회, 올레국수, 고기국수집
@@ -320,9 +321,10 @@ VS Code 에서 `Ctrl+Shift+V`(macOS `Cmd+Shift+V`)로 미리보기하면 보기 
 | `필수 API 키가 설정되지 않았습니다` | (즉시 종료) | `.env` 없음 / 변수명 오타 | `cp .env.example .env` 후 값 입력. 변수명은 `GEMINI_API_KEY`, `KAKAO_REST_API_KEY` |
 | `HTTP 400: ... API_KEY_INVALID` | `AUTH_ERROR` | **Gemini 는 키가 틀려도 401 이 아니라 400 을 보냅니다** | 키 재확인. 이 프로그램은 본문의 `API_KEY_INVALID` 문구를 보고 인증 오류로 분류합니다 |
 | `HTTP 401` / `HTTP 403` | `AUTH_ERROR` | 키가 틀렸거나 만료, Kakao 는 JavaScript 키를 쓴 경우 | 키 재확인. Kakao 는 **REST API 키**여야 함. 헤더 형식 `KakaoAK {키}` |
-| `HTTP 404: models/... not found` | `API_ERROR` | 모델 이름이 잘못됨 | `.env` 의 `GEMINI_MODEL` 값 확인. 아래 "사용 가능한 모델 확인" 참고 |
-| `HTTP 429` | `QUOTA_ERROR` | 호출 한도 초과 | 잠시 후 재시도. Gemini 무료 티어는 **분당/일일 호출 제한**이 있습니다 |
-| `HTTP 500` / `503` | `API_ERROR` | 제공자 서버 장애 | 잠시 후 재시도. 상태 페이지 확인 |
+| `HTTP 404: This model ... is no longer available` | `API_ERROR` | **모델이 단종됨** (실제로 겪은 오류입니다) | `.env` 의 `GEMINI_MODEL` 을 `gemini-flash-latest` 로 두면 이 문제가 생기지 않습니다. 아래 "사용 가능한 모델 확인" 참고 |
+| `HTTP 429` | `QUOTA_ERROR` | 호출 한도 초과 | 잠시 후 재시도. Gemini 무료 티어는 **분당/일일 호출 제한**이 있습니다. **자동 재시도하지 않습니다** — 한도 초과 상태에서 다시 부르면 상황만 나빠지기 때문입니다 |
+| `HTTP 503: experiencing high demand` | `API_ERROR` | 모델 서버 일시 과부하 (무료 티어에서 흔함) | **프로그램이 2초 → 4초 간격으로 최대 2번 자동 재시도**합니다. 그래도 안 되면 잠시 후 다시 실행하세요 |
+| `HTTP 500` / `502` / `504` | `API_ERROR` | 제공자 서버 장애 | 503 과 같은 자동 재시도 대상입니다 |
 | `타임아웃` / `네트워크 오류` | `NETWORK_ERROR` | 인터넷 끊김, 사내 프록시/방화벽 | 네트워크 확인. 프록시 환경이면 `HTTPS_PROXY` 설정 확인 |
 | `응답 본문이 비어 있습니다` | `API_ERROR` | 안전 필터 차단(SAFETY) 또는 길이 초과(MAX_TOKENS) | 200 OK 인데도 본문이 빌 수 있는 것이 Gemini 의 특징입니다. `MAX_TOKENS` 면 `llm_client.py` 의 `REPORT_MAX_TOKENS` 를 늘리세요 |
 | `JSON 파싱 실패` | `PARSE_ERROR` | LLM 이 설명 문장·코드블록을 덧붙임 | 프로그램이 코드블록 제거 후 **1회만** 재시도하고, 실패 시 기본값으로 진행합니다. 반복되면 `GEMINI_MODEL` 을 더 성능 좋은 모델로 바꿔 보세요 |

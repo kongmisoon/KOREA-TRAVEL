@@ -46,9 +46,13 @@ ENV_KAKAO_REST_API_KEY: str = "KAKAO_REST_API_KEY"
 ENV_GEMINI_MODEL: str = "GEMINI_MODEL"
 
 #: GEMINI_MODEL 환경변수가 없을 때 사용할 기본 모델.
-#: gemini-2.0-flash 는 무료 티어에서 쓸 수 있고 응답이 빠르며,
-#: "생각(thinking) 토큰"을 쓰지 않아 짧은 응답이 잘려 나갈 위험이 적다.
-DEFAULT_GEMINI_MODEL: str = "gemini-2.0-flash"
+#:
+#: 버전을 고정한 이름(gemini-2.0-flash 등)을 기본값으로 쓰면, 그 모델이 단종되는
+#: 순간 프로그램이 404 로 죽는다. 실제로 이 프로젝트도 처음에는 gemini-2.0-flash 를
+#: 기본값으로 썼다가 "no longer available" 응답을 받고 바꿨다.
+#: 그래서 항상 최신 flash 모델을 가리키는 **별칭(alias)** 을 기본값으로 둔다.
+#: 특정 버전으로 고정하고 싶으면 .env 의 GEMINI_MODEL 로 지정하면 된다.
+DEFAULT_GEMINI_MODEL: str = "gemini-flash-latest"
 
 # --- 외부 API 엔드포인트 ---
 #: Gemini 는 모델 이름이 URL 경로에 들어간다.

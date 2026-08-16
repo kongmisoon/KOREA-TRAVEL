@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -63,8 +64,28 @@ REPORT_TEMPERATURE: float = 0.6
 
 #: 응답 최대 토큰 수. 넉넉히 잡는다 - 부족하면 응답이 중간에 잘려(MAX_TOKENS)
 #: JSON 파싱이 실패하거나 리포트 섹션이 통째로 사라진다.
-RECOMMENDATION_MAX_TOKENS: int = 1200
-REPORT_MAX_TOKENS: int = 3000
+#:
+#: 특히 최신 Gemini 는 답을 내기 전에 속으로 추론하는 **"생각(thinking) 토큰"** 을
+#: 쓰는데, 이 토큰도 maxOutputTokens 한도를 함께 소비한다. 실제로 1200 으로 두고
+#: gemini-3.5-flash 를 호출했더니 생각에 예산을 다 쓰고 JSON 이 중간에 끊겨
+#: "Unterminated string" 파싱 오류가 났다. 그래서 여유 있게 잡는다.
+#: (한도를 올려도 실제로 쓴 만큼만 과금되므로 손해가 없다)
+RECOMMENDATION_MAX_TOKENS: int = 4096
+REPORT_MAX_TOKENS: int = 8192
+
+#: 서버 쪽 일시 장애(5xx)일 때만 허용하는 추가 시도 횟수와 대기 시간(초).
+#:
+#: 왜 필요한가? Gemini 무료 티어는 "This model is currently experiencing high demand"
+#: 라는 503 을 자주 돌려준다. 이건 우리 잘못이 아니라 잠시 기다리면 풀리는 문제다.
+#: 이 재시도가 없으면 503 한 번에 JSON 재파싱 기회까지 같이 날아가 버린다.
+#:
+#: 주의: **429(쿼터 초과)는 여기서 재시도하지 않는다.** 한도를 넘긴 상태에서
+#: 즉시 다시 부르면 상황만 악화되기 때문이다. 4xx(우리 요청이 잘못됨)도 마찬가지다.
+TRANSIENT_RETRY_COUNT: int = 2
+TRANSIENT_RETRY_DELAYS: tuple = (2, 4)  # 지수 백오프: 2초 → 4초
+
+#: 일시 장애로 간주해 재시도할 HTTP 상태 코드.
+TRANSIENT_STATUS_CODES = (500, 502, 503, 504)
 
 #: 파싱 실패 시 사용할 기본값(fallback). 프로그램이 멈추지 않게 하는 안전망.
 FALLBACK_RECOMMENDATION: Dict[str, Any] = {
@@ -228,21 +249,36 @@ def call_generate_content(
         "generationConfig": generation_config,
     }
 
-    try:
-        # timeout 을 반드시 지정한다. 없으면 서버가 응답하지 않을 때 영원히 멈춘다.
-        response = requests.post(
-            build_endpoint(get_model_name()),
-            headers=headers,
-            json=payload,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-    except requests.exceptions.Timeout as exc:
-        add_error(errors, step, ERROR_NETWORK, f"LLM 요청 타임아웃: {truncate_for_log(exc)}")
-        return None
-    except requests.exceptions.RequestException as exc:
-        # DNS 실패, 연결 거부, SSL 오류 등 네트워크 계열 예외를 한 번에 처리한다.
-        add_error(errors, step, ERROR_NETWORK, f"LLM 네트워크 오류: {truncate_for_log(exc)}")
-        return None
+    endpoint = build_endpoint(get_model_name())
+    response = None
+
+    # 서버 일시 장애(5xx)면 짧게 기다렸다 다시 시도한다. 그 외에는 한 번만 호출한다.
+    for attempt in range(1 + TRANSIENT_RETRY_COUNT):
+        try:
+            # timeout 을 반드시 지정한다. 없으면 서버가 응답하지 않을 때 영원히 멈춘다.
+            response = requests.post(
+                endpoint,
+                headers=headers,
+                json=payload,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+        except requests.exceptions.Timeout as exc:
+            add_error(errors, step, ERROR_NETWORK, f"LLM 요청 타임아웃: {truncate_for_log(exc)}")
+            return None
+        except requests.exceptions.RequestException as exc:
+            # DNS 실패, 연결 거부, SSL 오류 등 네트워크 계열 예외를 한 번에 처리한다.
+            add_error(errors, step, ERROR_NETWORK, f"LLM 네트워크 오류: {truncate_for_log(exc)}")
+            return None
+
+        if response.status_code not in TRANSIENT_STATUS_CODES:
+            break  # 성공이든 영구적 실패든, 재시도로 달라질 게 없으므로 빠져나간다.
+
+        if attempt < TRANSIENT_RETRY_COUNT:
+            delay = TRANSIENT_RETRY_DELAYS[attempt]
+            # 조용히 넘어가지 않고 무슨 일이 벌어지는지 사용자에게 알린다.
+            print(f"  - 서버 일시 오류({response.status_code}). {delay}초 후 다시 시도합니다"
+                  f" ({attempt + 1}/{TRANSIENT_RETRY_COUNT})")
+            time.sleep(delay)
 
     if response.status_code != 200:
         error_type = classify_llm_http_status(response.status_code, response.text)
