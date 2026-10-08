@@ -1,0 +1,642 @@
+{
+  "file_warnings": [],
+  "file_errors": [],
+  "results": [
+    {
+      "status": "MATCHED",
+      "record": {
+        "source": "HIRA",
+        "sheet": "진료내역",
+        "row_number": 4,
+        "date": "2024-03-05",
+        "date_raw": "2024-03-05",
+        "drug_code": "200800001",
+        "drug_code_raw": "200800001",
+        "product_name": {
+          "raw": "하나펜정500mg",
+          "normalized": "하나펜정500mg"
+        },
+        "strength": {
+          "raw": "500mg",
+          "value": 500.0,
+          "unit": "mg",
+          "source": "PRODUCT_NAME"
+        },
+        "ingredients": [
+          {
+            "name": "아세트아미노펜",
+            "strength_value": null,
+            "strength_unit": null,
+            "source": "HIRA"
+          }
+        ],
+        "dosage": {
+          "dose_per_time": 1.0,
+          "times_per_day": 3.0,
+          "total_days": 3,
+          "raw": {
+            "dose_per_time": "1",
+            "times_per_day": "3",
+            "total_days": "3"
+          }
+        },
+        "institution": "가나다의원",
+        "raw_row": {
+          "진료일자": "2024-03-05",
+          "약품코드": "200800001",
+          "약품명": "하나펜정500mg",
+          "주성분명": "아세트아미노펜",
+          "1회\n투약량": "1",
+          "1일 투여횟수": "3",
+          "총 투약일수": "3",
+          "요양기관명": "가나다의원"
+        }
+      },
+      "match": {
+        "source": "MFDS_DRUG",
+        "official_id": "200800001",
+        "match_method": "CODE_EXACT"
+      },
+      "warnings": [],
+      "errors": [],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 4
+      }
+    },
+    {
+      "status": "MATCHED",
+      "record": {
+        "source": "HIRA",
+        "sheet": "진료내역",
+        "row_number": 5,
+        "date": "2024-03-05",
+        "date_raw": "2024-03-05",
+        "drug_code": null,
+        "drug_code_raw": null,
+        "product_name": {
+          "raw": "하나펜정650mg",
+          "normalized": "하나펜정650mg"
+        },
+        "strength": {
+          "raw": "650mg",
+          "value": 650.0,
+          "unit": "mg",
+          "source": "PRODUCT_NAME"
+        },
+        "ingredients": [
+          {
+            "name": "아세트아미노펜",
+            "strength_value": 650,
+            "strength_unit": "mg",
+            "source": "MFDS"
+          }
+        ],
+        "dosage": {
+          "dose_per_time": 1.0,
+          "times_per_day": 2.0,
+          "total_days": 3,
+          "raw": {
+            "dose_per_time": "1",
+            "times_per_day": "2",
+            "total_days": "3"
+          }
+        },
+        "institution": "가나다의원",
+        "raw_row": {
+          "진료일자": "2024-03-05",
+          "약품코드": null,
+          "약품명": "하나펜정650mg",
+          "주성분명": null,
+          "1회\n투약량": "1",
+          "1일 투여횟수": "2",
+          "총 투약일수": "3",
+          "요양기관명": "가나다의원"
+        }
+      },
+      "match": {
+        "source": "MFDS_DRUG",
+        "official_id": "200800002",
+        "match_method": "NAME_EXACT"
+      },
+      "warnings": [
+        "CODE_MISSING: 약품코드 없음 -> null"
+      ],
+      "errors": [],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 5
+      }
+    },
+    {
+      "status": "MATCHED",
+      "record": {
+        "source": "HIRA",
+        "sheet": "진료내역",
+        "row_number": 6,
+        "date": "2024-03-06",
+        "date_raw": "2024.03.06",
+        "drug_code": "012345678",
+        "drug_code_raw": "012345678",
+        "product_name": {
+          "raw": "셋트린정10mg",
+          "normalized": "셋트린정10mg"
+        },
+        "strength": {
+          "raw": "10mg",
+          "value": 10.0,
+          "unit": "mg",
+          "source": "PRODUCT_NAME"
+        },
+        "ingredients": [
+          {
+            "name": "세티리진염산염",
+            "strength_value": 10,
+            "strength_unit": "mg",
+            "source": "MFDS"
+          }
+        ],
+        "dosage": {
+          "dose_per_time": 1.0,
+          "times_per_day": 1.0,
+          "total_days": 7,
+          "raw": {
+            "dose_per_time": "1",
+            "times_per_day": "1",
+            "total_days": "7"
+          }
+        },
+        "institution": "라마바약국",
+        "raw_row": {
+          "진료일자": "2024.03.06",
+          "약품코드": "012345678",
+          "약품명": "셋트린정10mg",
+          "주성분명": null,
+          "1회\n투약량": "1",
+          "1일 투여횟수": "1",
+          "총 투약일수": "7",
+          "요양기관명": "라마바약국"
+        }
+      },
+      "match": {
+        "source": "MFDS_DRUG",
+        "official_id": "012345678",
+        "match_method": "CODE_EXACT"
+      },
+      "warnings": [],
+      "errors": [],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 6
+      }
+    },
+    {
+      "status": "MATCHED",
+      "record": {
+        "source": "HIRA",
+        "sheet": "진료내역",
+        "row_number": 7,
+        "date": null,
+        "date_raw": "2024-13-45",
+        "drug_code": "12345678",
+        "drug_code_raw": "12345678",
+        "product_name": {
+          "raw": "둘렉신캡슐250mg",
+          "normalized": "둘렉신캡슐250mg"
+        },
+        "strength": {
+          "raw": "250mg",
+          "value": 250.0,
+          "unit": "mg",
+          "source": "PRODUCT_NAME"
+        },
+        "ingredients": [
+          {
+            "name": "아목시실린수화물",
+            "strength_value": 250,
+            "strength_unit": "mg",
+            "source": "MFDS"
+          }
+        ],
+        "dosage": {
+          "dose_per_time": 1.0,
+          "times_per_day": 3.0,
+          "total_days": 5,
+          "raw": {
+            "dose_per_time": "1",
+            "times_per_day": "3",
+            "total_days": "5"
+          }
+        },
+        "institution": "라마바약국",
+        "raw_row": {
+          "진료일자": "2024-13-45",
+          "약품코드": "12345678",
+          "약품명": "둘렉신캡슐250mg",
+          "주성분명": null,
+          "1회\n투약량": "1",
+          "1일 투여횟수": "3",
+          "총 투약일수": "5",
+          "요양기관명": "라마바약국"
+        }
+      },
+      "match": {
+        "source": "MFDS_DRUG",
+        "official_id": "200800004",
+        "match_method": "NAME_EXACT"
+      },
+      "warnings": [
+        "DATE_INVALID: '2024-13-45'",
+        "CODE_NUMERIC_CELL: '12345678' 숫자 셀이라 앞자리 0이 유실됐을 수 있음 (보정하지 않음)"
+      ],
+      "errors": [],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 7
+      }
+    },
+    {
+      "status": "PARTIAL",
+      "record": {
+        "source": "HIRA",
+        "sheet": "진료내역",
+        "row_number": 9,
+        "date": null,
+        "date_raw": null,
+        "drug_code": null,
+        "drug_code_raw": null,
+        "product_name": {
+          "raw": "하나펜정",
+          "normalized": "하나펜정"
+        },
+        "strength": {
+          "raw": null,
+          "value": null,
+          "unit": null,
+          "source": null
+        },
+        "ingredients": [],
+        "dosage": {
+          "dose_per_time": 1.0,
+          "times_per_day": 3.0,
+          "total_days": 3,
+          "raw": {
+            "dose_per_time": "1",
+            "times_per_day": "3",
+            "total_days": "3"
+          }
+        },
+        "institution": "가나다의원",
+        "raw_row": {
+          "진료일자": null,
+          "약품코드": null,
+          "약품명": "하나펜정",
+          "주성분명": null,
+          "1회\n투약량": "1",
+          "1일 투여횟수": "3",
+          "총 투약일수": "3",
+          "요양기관명": "가나다의원"
+        }
+      },
+      "match": {
+        "source": null,
+        "official_id": null,
+        "match_method": "NAME_EXACT"
+      },
+      "warnings": [
+        "DATE_MISSING: 날짜 없음 -> null",
+        "CODE_MISSING: 약품코드 없음 -> null",
+        "STRENGTH_MISSING: 함량 정보 없음 -> null",
+        "MULTIPLE_CANDIDATES: 200800001:하나펜정500mg, 200800002:하나펜정650mg"
+      ],
+      "errors": [],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 9
+      }
+    },
+    {
+      "status": "MATCHED",
+      "record": {
+        "source": "HIRA",
+        "sheet": "진료내역",
+        "row_number": 10,
+        "date": "2024-03-07",
+        "date_raw": "20240307",
+        "drug_code": null,
+        "drug_code_raw": null,
+        "product_name": {
+          "raw": "베타글루칸프로로정",
+          "normalized": "베타글루칸프로로정"
+        },
+        "strength": {
+          "raw": null,
+          "value": null,
+          "unit": null,
+          "source": null
+        },
+        "ingredients": [
+          {
+            "name": "글루칸",
+            "strength_value": null,
+            "strength_unit": null,
+            "source": "MFDS"
+          }
+        ],
+        "dosage": {
+          "dose_per_time": 1.0,
+          "times_per_day": 1.0,
+          "total_days": 14,
+          "raw": {
+            "dose_per_time": "1",
+            "times_per_day": "1",
+            "total_days": "14"
+          }
+        },
+        "institution": "가나다의원",
+        "raw_row": {
+          "진료일자": "20240307",
+          "약품코드": null,
+          "약품명": "베타글루칸프로로정",
+          "주성분명": null,
+          "1회\n투약량": "1",
+          "1일 투여횟수": "1",
+          "총 투약일수": "14",
+          "요양기관명": "가나다의원"
+        }
+      },
+      "match": {
+        "source": "MFDS_DRUG",
+        "official_id": "200800005",
+        "match_method": "NAME_FUZZY"
+      },
+      "warnings": [
+        "CODE_MISSING: 약품코드 없음 -> null",
+        "STRENGTH_MISSING: 함량 정보 없음 -> null",
+        "FUZZY_MATCH: score=0.933"
+      ],
+      "errors": [],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 10
+      }
+    },
+    {
+      "status": "PARTIAL",
+      "record": {
+        "source": "HIRA",
+        "sheet": "진료내역",
+        "row_number": 11,
+        "date": "2024-03-08",
+        "date_raw": "2024-03-08",
+        "drug_code": null,
+        "drug_code_raw": null,
+        "product_name": {
+          "raw": "엡실론콤비플러스액티브",
+          "normalized": "엡실론콤비플러스액티브"
+        },
+        "strength": {
+          "raw": null,
+          "value": null,
+          "unit": null,
+          "source": null
+        },
+        "ingredients": [],
+        "dosage": {
+          "dose_per_time": 1.0,
+          "times_per_day": 1.0,
+          "total_days": 14,
+          "raw": {
+            "dose_per_time": "1",
+            "times_per_day": "1",
+            "total_days": "14"
+          }
+        },
+        "institution": "가나다의원",
+        "raw_row": {
+          "진료일자": "2024-03-08",
+          "약품코드": null,
+          "약품명": "엡실론콤비플러스액티브",
+          "주성분명": null,
+          "1회\n투약량": "1",
+          "1일 투여횟수": "1",
+          "총 투약일수": "14",
+          "요양기관명": "가나다의원"
+        }
+      },
+      "match": {
+        "source": null,
+        "official_id": null,
+        "match_method": "NAME_FUZZY"
+      },
+      "warnings": [
+        "CODE_MISSING: 약품코드 없음 -> null",
+        "STRENGTH_MISSING: 함량 정보 없음 -> null",
+        "MULTIPLE_CANDIDATES: 200800007:엡실론콤비플러스액티브비, 200800006:엡실론콤비플러스액티브에이"
+      ],
+      "errors": [],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 11
+      }
+    },
+    {
+      "status": "UNMATCHED",
+      "record": {
+        "source": "HIRA",
+        "sheet": "진료내역",
+        "row_number": 12,
+        "date": "2024-03-08",
+        "date_raw": "2024-03-08",
+        "drug_code": null,
+        "drug_code_raw": null,
+        "product_name": {
+          "raw": "존재안함정",
+          "normalized": "존재안함정"
+        },
+        "strength": {
+          "raw": null,
+          "value": null,
+          "unit": null,
+          "source": null
+        },
+        "ingredients": [],
+        "dosage": {
+          "dose_per_time": 1.0,
+          "times_per_day": 1.0,
+          "total_days": 5,
+          "raw": {
+            "dose_per_time": "1",
+            "times_per_day": "1",
+            "total_days": "5"
+          }
+        },
+        "institution": "가나다의원",
+        "raw_row": {
+          "진료일자": "2024-03-08",
+          "약품코드": null,
+          "약품명": "존재안함정",
+          "주성분명": null,
+          "1회\n투약량": "1",
+          "1일 투여횟수": "1",
+          "총 투약일수": "5",
+          "요양기관명": "가나다의원"
+        }
+      },
+      "match": {
+        "source": null,
+        "official_id": null,
+        "match_method": "NONE"
+      },
+      "warnings": [
+        "CODE_MISSING: 약품코드 없음 -> null",
+        "STRENGTH_MISSING: 함량 정보 없음 -> null",
+        "NO_OFFICIAL_MATCH: 공식 데이터에서 찾지 못함"
+      ],
+      "errors": [],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 12
+      }
+    },
+    {
+      "status": "FAILED",
+      "record": null,
+      "match": {
+        "source": null,
+        "official_id": null,
+        "match_method": "NONE"
+      },
+      "warnings": [],
+      "errors": [
+        "PRODUCT_NAME_MISSING: 약품명이 비어 있어 행을 해석할 수 없음"
+      ],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 14
+      }
+    },
+    {
+      "status": "MATCHED",
+      "record": {
+        "source": "HIRA",
+        "sheet": "진료내역",
+        "row_number": 15,
+        "date": "2024-03-10",
+        "date_raw": "2024-03-10",
+        "drug_code": "H2020000001",
+        "drug_code_raw": "H2020000001",
+        "product_name": {
+          "raw": "하루비타민C 1000mg",
+          "normalized": "하루비타민C 1000mg"
+        },
+        "strength": {
+          "raw": "1000mg",
+          "value": 1000.0,
+          "unit": "mg",
+          "source": "PRODUCT_NAME"
+        },
+        "ingredients": [
+          {
+            "name": "비타민C",
+            "strength_value": 1000,
+            "strength_unit": "mg",
+            "source": "MFDS"
+          }
+        ],
+        "dosage": {
+          "dose_per_time": 0.0,
+          "times_per_day": 1.0,
+          "total_days": 30,
+          "raw": {
+            "dose_per_time": "0",
+            "times_per_day": "1",
+            "total_days": "30일"
+          }
+        },
+        "institution": "가나다의원",
+        "raw_row": {
+          "진료일자": "2024-03-10",
+          "약품코드": "H2020000001",
+          "약품명": "하루비타민C 1000mg",
+          "주성분명": null,
+          "1회\n투약량": "0",
+          "1일 투여횟수": "1",
+          "총 투약일수": "30일",
+          "요양기관명": "가나다의원"
+        }
+      },
+      "match": {
+        "source": "MFDS_HFOOD",
+        "official_id": "H2020000001",
+        "match_method": "CODE_EXACT"
+      },
+      "warnings": [],
+      "errors": [],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 15
+      }
+    },
+    {
+      "status": "PARTIAL",
+      "record": {
+        "source": "HIRA",
+        "sheet": "진료내역",
+        "row_number": 16,
+        "date": "2024-03-10",
+        "date_raw": "2024-03-10",
+        "drug_code": null,
+        "drug_code_raw": null,
+        "product_name": {
+          "raw": "성분없는정",
+          "normalized": "성분없는정"
+        },
+        "strength": {
+          "raw": null,
+          "value": null,
+          "unit": null,
+          "source": null
+        },
+        "ingredients": [],
+        "dosage": {
+          "dose_per_time": null,
+          "times_per_day": 1.0,
+          "total_days": 5,
+          "raw": {
+            "dose_per_time": "abc",
+            "times_per_day": "1",
+            "total_days": "5"
+          }
+        },
+        "institution": "가나다의원",
+        "raw_row": {
+          "진료일자": "2024-03-10",
+          "약품코드": null,
+          "약품명": "성분없는정",
+          "주성분명": null,
+          "1회\n투약량": "abc",
+          "1일 투여횟수": "1",
+          "총 투약일수": "5",
+          "요양기관명": "가나다의원"
+        }
+      },
+      "match": {
+        "source": "MFDS_DRUG",
+        "official_id": "200800008",
+        "match_method": "NAME_EXACT"
+      },
+      "warnings": [
+        "CODE_MISSING: 약품코드 없음 -> null",
+        "STRENGTH_MISSING: 함량 정보 없음 -> null",
+        "NUMBER_UNPARSEABLE: 'abc' (dose_per_time)",
+        "OFFICIAL_INGREDIENTS_MISSING: 공식 데이터에 성분 정보 없음"
+      ],
+      "errors": [],
+      "source_ref": {
+        "sheet": "진료내역",
+        "row_number": 16
+      }
+    }
+  ]
+}
