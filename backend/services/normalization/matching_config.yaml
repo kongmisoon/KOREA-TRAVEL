@@ -1,1 +1,0 @@
-fuzzy_threshold: 0.9   # NAME_FUZZY 유사도(difflib ratio) 임계값
